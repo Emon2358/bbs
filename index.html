@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ロッテノレダッチBBS</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f4;
+      color: #333;
+      margin: 0;
+      padding: 0;
+    }
+    h1 {
+      text-align: center;
+      color: #4CAF50;
+    }
+    #messageForm {
+      display: flex;
+      justify-content: center;
+      margin-top: 20px;
+    }
+    #messageForm input, #messageForm textarea {
+      width: 300px;
+      margin: 5px;
+      padding: 10px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+    }
+    .post {
+      background-color: #fff;
+      padding: 15px;
+      margin: 10px 0;
+      border-radius: 5px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    .post-header {
+      font-weight: bold;
+    }
+    .rate-limit {
+      color: red;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>ロッテノレダッチBBSへようこそ！土足で上がっていいけどちゃんと雑巾掛けして帰ってね☆</h1>
+
+  <div id="messageForm">
+    <input type="text" id="username" placeholder="ユーザー名" required>
+    <textarea id="message" placeholder="メッセージ" rows="4" required></textarea>
+    <button onclick="submitMessage()">投稿</button>
+  </div>
+
+  <div id="rateLimit" class="rate-limit" style="display: none;">
+    1分以内に再投稿はできません。
+  </div>
+
+  <div id="posts">
+    <!-- 投稿されたメッセージはここに表示される -->
+  </div>
+
+  <script>
+    async function fetchPosts() {
+      const response = await fetch('posts/index.json');
+      const posts = await response.json();
+
+      const postsDiv = document.getElementById('posts');
+      postsDiv.innerHTML = '';  // 既存の投稿をクリア
+
+      posts.forEach(post => {
+        const postDiv = document.createElement('div');
+        postDiv.classList.add('post');
+        postDiv.innerHTML = `<div class="post-header">${post.username}:</div><div>${post.message}</div>`;
+        postsDiv.appendChild(postDiv);
+      });
+    }
+
+    async function submitMessage() {
+      const username = document.getElementById('username').value.trim();
+      const message = document.getElementById('message').value.trim();
+
+      if (!username || !message) {
+        alert('ユーザー名とメッセージを入力してください');
+        return;
+      }
+
+      // レート制限チェック
+      const rateLimitDiv = document.getElementById('rateLimit');
+      const response = await fetch(`/api/check-rate-limit?username=${username}`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.limit) {
+          rateLimitDiv.style.display = 'block';
+          return;
+        }
+      }
+
+      // 投稿
+      const submitResponse = await fetch('/api/submit-post', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ username, message })
+      });
+
+      if (submitResponse.ok) {
+        fetchPosts();
+        document.getElementById('username').value = '';
+        document.getElementById('message').value = '';
+        rateLimitDiv.style.display = 'none';
+      } else {
+        alert('投稿できませんでした。');
+      }
+    }
+
+    // ページ読み込み時に投稿を表示
+    fetchPosts();
+  </script>
+
+</body>
+</html>
